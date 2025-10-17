@@ -12,7 +12,7 @@ def get_data(args, dataset, split='train'):
         torch.save(data, data_path)
     else:
         print(f"  - Found cached {split} data")
-        data = torch.load(data_path)
+        data = torch.load(data_path,weights_only=False)
     return data
 
 

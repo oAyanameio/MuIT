@@ -100,13 +100,17 @@ criterion_dict = {
 
 torch.set_default_tensor_type('torch.FloatTensor')
 if torch.cuda.is_available():
-    if args.no_cuda:
-        print("WARNING: You have a CUDA device, so you should probably not run with --no_cuda")
-    else:
-        torch.cuda.manual_seed(args.seed)
-        torch.set_default_tensor_type('torch.cuda.FloatTensor')
-        use_cuda = True
+    # 忽略--no_cuda，强制使用CUDA
+    torch.cuda.manual_seed(args.seed)
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    use_cuda = True
+    print("强制启用CUDA训练")
+else:
+    use_cuda = False
+    print("无可用CUDA设备，使用CPU")
 
+# 添加此行，输出是否使用 CUDA
+print(f"### Using CUDA: {use_cuda}")
 ####################################################################
 #
 # Load the dataset (aligned or non-aligned)
@@ -118,11 +122,21 @@ print("Start loading the data....")
 train_data = get_data(args, dataset, 'train')
 valid_data = get_data(args, dataset, 'valid')
 test_data = get_data(args, dataset, 'test')
-   
-train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
-valid_loader = DataLoader(valid_data, batch_size=args.batch_size, shuffle=True)
-test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
-
+#
+# train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+# valid_loader = DataLoader(valid_data, batch_size=args.batch_size, shuffle=True)
+# test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
+# 修改为：
+if use_cuda:
+    # 使用 CUDA 生成器
+    train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, generator=torch.Generator(device='cuda'))
+    valid_loader = DataLoader(valid_data, batch_size=args.batch_size, shuffle=True, generator=torch.Generator(device='cuda'))
+    test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True, generator=torch.Generator(device='cuda'))
+else:
+    # 保持 CPU 生成器
+    train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+    valid_loader = DataLoader(valid_data, batch_size=args.batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 print('Finish loading the data....')
 if not args.aligned:
     print("### Note: You are running in unaligned mode.")
