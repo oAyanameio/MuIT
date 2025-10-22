@@ -5,3 +5,5 @@ print(torch.cuda.get_device_name(0))
 
 import torch
 torch.cuda.set_device(0)
+import numpy
+print(numpy.__version__)
