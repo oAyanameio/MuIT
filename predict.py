@@ -48,7 +48,7 @@ def get_hyp_params():
     # 推理参数
     parser.add_argument('--model_path', type=str, default='pre_trained_models/aligned_model_MulT.pt')
     parser.add_argument('--no_cuda', action='store_true')
-    parser.add_argument('--video_path', type=str, default='TestVido4.mp4')
+    parser.add_argument('--video_path', type=str, default='TestVido3.mp4')
     parser.add_argument('--pca_path', type=str, default='pca_model.pkl', help="预训练PCA模型路径")
     args = parser.parse_args()
 
