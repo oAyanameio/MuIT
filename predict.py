@@ -136,7 +136,7 @@ def init_global_models(pca_path):
     if whisper_model is None:
         try:
             import whisper
-            whisper_model = whisper.load_model("base")
+            whisper_model = whisper.load_model("small")
         except Exception as e:
             print(f"Whisper模型初始化警告: {str(e)}")
 

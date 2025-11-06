@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=3 python -u main.py --dataset mosei_senti  --num_epochs 60

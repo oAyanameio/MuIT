@@ -1,0 +1,23 @@
+name: mult
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7
+  - pip>=20.0
+  - pytorch>=1.0.0,<1.14.0
+  - torchvision>=0.2.2,<0.15.0
+  - cudatoolkit=10.2  # 匹配项目要求的 CUDA 10.0+，根据实际环境调整
+  - numpy>=1.16.0
+  - scipy>=1.2.0
+  - scikit-learn>=0.20.0
+  - librosa>=0.6.3
+  - opencv-python>=4.1.0.25
+  - ffmpeg>=4.2  # 系统工具，conda 直接安装
+  - pip:
+    - pickle5>=0.0.11
+    - transformers>=4.0.0
+    - openai-whisper>=20231117
+    # warpctc-pytorch 需从源码安装，此处不包含
+    - tqdm>=4.31.1

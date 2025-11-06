@@ -51,18 +51,18 @@ parser.add_argument('--attn_mask', action='store_false',
                     help='use attention mask for Transformer (default: true)')
 
 # Tuning
-parser.add_argument('--batch_size', type=int, default=24, metavar='N',
-                    help='batch size (default: 24)')
+parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+                    help='batch size (default: 32)')
 parser.add_argument('--clip', type=float, default=0.8,
                     help='gradient clip value (default: 0.8)')
-parser.add_argument('--lr', type=float, default=1e-3,
-                    help='initial learning rate (default: 1e-3)')
+parser.add_argument('--lr', type=float, default=1e-4,
+                    help='论文使用的初始学习率')
 parser.add_argument('--optim', type=str, default='Adam',
                     help='optimizer to use (default: Adam)')
 parser.add_argument('--num_epochs', type=int, default=40,
                     help='number of epochs (default: 40)')
-parser.add_argument('--when', type=int, default=20,
-                    help='when to decay learning rate (default: 20)')
+parser.add_argument('--when', type=int, default=5,
+                    help='when to decay learning rate (default: 5)')
 parser.add_argument('--batch_chunk', type=int, default=1,
                     help='number of chunks per batch (default: 1)')
 
