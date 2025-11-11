@@ -9,3 +9,5 @@ else:
 
 import torch
 torch.cuda.set_device(0)
+import torchvision
+print("torchvision 版本:", torchvision.__version__)
