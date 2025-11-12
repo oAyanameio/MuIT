@@ -97,28 +97,55 @@ def extract_language_feat(text: str) -> np.ndarray:
 
 
 def extract_vision_feat(frames_dir: str) -> np.ndarray:
-    """附录D：35维AU特征"""
-    print("提取35维AU特征...")
+    """附录D：35维AU特征（原始OpenFace方案）"""
+    print("提取35维AU特征（OpenFace方案）...")
     openface_csv = os.path.join(TEMP_DIR, "openface_au.csv")
-    cmd = [
-        "FeatureExtraction.exe" if os.name == "nt" else "FeatureExtraction",
-        "-fdir", frames_dir, "-out_dir", TEMP_DIR, "-au_static", "-no_gaze", "-no_3dface"
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        print(f"OpenFace提取失败：{result.stderr}")
+
+    # 关键：填写你的OpenFace FeatureExtraction.exe完整路径（必须准确）
+    openface_exe = r"E:\Multimodal-Transformer\OpenFace_2.2.0_win_x64\OpenFace_2.2.0_win_x64\x64\Release\FeatureExtraction.exe"
+
+    # 验证可执行文件是否存在
+    if not os.path.exists(openface_exe):
+        print(f"错误：未找到OpenFace可执行文件，请检查路径：{openface_exe}")
         return np.zeros((15, FEAT_DIMS["V"]), dtype=np.float32)
+
+    cmd = [
+        openface_exe,
+        "-fdir", frames_dir,  # 视频帧目录
+        "-out_dir", TEMP_DIR,  # 输出CSV目录
+        "-au_static",  # 提取静态AU特征（附录D要求）
+        "-no_gaze",  # 禁用gaze特征（提速）
+        "-no_3dface",  # 禁用3D面部特征（提速）
+        "-nobadalign",  # 跳过对齐失败的帧
+        "-nocheckfaces",  # 不检查面部数量（单人脸视频）
+        "-num_threads", "2"  # 双线程加速
+    ]
 
     try:
-        au_data = np.loadtxt(
-            openface_csv, delimiter=",", skiprows=1, usecols=range(22, 57),
-            dtype=np.float32, encoding="utf-8"
-        )
-        return au_data
+        # 执行OpenFace命令（超时300秒）
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode == 0:
+            print("OpenFace特征提取成功")
+        else:
+            print(f"OpenFace执行日志（前500字符）：{result.stderr[:500]}")
     except Exception as e:
-        print(f"AU特征读取失败：{str(e)}")
+        print(f"OpenFace调用失败：{str(e)}")
         return np.zeros((15, FEAT_DIMS["V"]), dtype=np.float32)
 
+    # 读取35维AU特征（CSV第22-56列）
+    try:
+        au_data = np.loadtxt(
+            openface_csv,
+            delimiter=",",
+            skiprows=1,
+            usecols=range(22, 57),  # 35维AU特征列索引
+            dtype=np.float32,
+            encoding="utf-8"
+        )
+        return au_data if au_data.shape[0] > 0 else np.zeros((15, 35), dtype=np.float32)
+    except Exception as e:
+        print(f"AU特征读取失败：{str(e)}")
+        return np.zeros((15, 35), dtype=np.float32)
 
 def extract_audio_feat(audio_path: str) -> np.ndarray:
     """附录D：74维音频特征（用librosa实现，替代COVAREP）"""
@@ -218,31 +245,54 @@ class AppendixDInference(nn.Module):
         self.pretrained_model = self.load_pretrained()
 
     def load_pretrained(self) -> nn.Module:
+        """加载预训练模型（解决WeightsUnpickler安全加载问题）"""
         print(f"加载预训练模型：{PRETRAINED_MODEL_PATH}")
         if not os.path.exists(PRETRAINED_MODEL_PATH):
             print("错误：未找到预训练模型文件")
             sys.exit(1)
 
         try:
+            # 方案1：添加自定义模型类到安全信任列表（推荐，更安全）
+            import torch.serialization
+            # 替换为你的模型类的实际路径（根据错误信息：src.models.MULTModel）
+            from src.models import MULTModel  # 关键：导入你的模型类
+
+            # 将模型类添加到安全全局列表
+            torch.serialization.add_safe_globals([MULTModel])
+
+            # 继续用 weights_only=True 安全加载
             model_data = torch.load(
                 PRETRAINED_MODEL_PATH,
                 map_location=DEVICE,
                 weights_only=True
             )
-        except Exception as e:
-            print(f"模型加载失败：{str(e)}")
-            sys.exit(1)
+        except (ImportError, Exception) as e1:
+            print(f"方案1加载失败（{str(e1)}），尝试方案2...")
+            try:
+                # 方案2：关闭安全检查（仅当你信任模型文件来源时使用）
+                model_data = torch.load(
+                    PRETRAINED_MODEL_PATH,
+                    map_location=DEVICE,
+                    weights_only=False  # 允许加载自定义类
+                )
+            except Exception as e2:
+                print(f"方案2加载失败：{str(e2)}")
+                print("错误原因：模型类未找到或模型文件损坏")
+                sys.exit(1)
 
+        # 适配模型格式（保持不变）
         if isinstance(model_data, nn.Module):
             return model_data.eval()
         elif isinstance(model_data, dict):
             try:
-                from modules.mult import MulT  # 替换为你的模型定义路径
+                # 替换为你的模型类（根据错误信息是 MULTModel，不是 MulT）
+                from src.models import MULTModel  # 关键：与你的预训练模型类一致
             except ImportError:
-                print("错误：未找到MulT模型定义，请确保modules.mult模块存在")
+                print("错误：未找到MULTModel模型定义，请确保 src.models 模块存在")
                 sys.exit(1)
 
-            mult_model = MulT(
+            # 初始化模型（参数需与训练时一致，根据你的模型调整）
+            mult_model = MULTModel(
                 hidden_dim=HIDDEN_DIM,
                 cross_attn_heads=8,
                 num_cross_attn_layers=4
